@@ -53,23 +53,23 @@ WinFw_Initialize(
 	void *logSinkContext
 )
 {
-	if (nullptr != g_fwContext)
-	{
-		//
-		// This is an error.
-		// The existing instance may have a different timeout etc.
-		//
-		return false;
-	}
-
-	// Convert seconds to milliseconds.
-	uint32_t timeout_ms = timeout * 1000;
-
-	g_logSink = logSink;
-	g_logSinkContext = logSinkContext;
-
 	try
 	{
+		if (nullptr != g_fwContext)
+		{
+			//
+			// This is an error.
+			// The existing instance may have a different timeout etc.
+			//
+			THROW_ERROR("Cannot initialize WINFW twice");
+		}
+
+		// Convert seconds to milliseconds.
+		uint32_t timeout_ms = timeout * 1000;
+
+		g_logSink = logSink;
+		g_logSinkContext = logSinkContext;
+
 		g_fwContext = new FwContext(timeout_ms);
 	}
 	catch (std::exception &err)
@@ -95,29 +95,34 @@ bool
 WINFW_API
 WinFw_InitializeBlocked(
 	uint32_t timeout,
-	const WinFwSettings &settings,
+	const WinFwSettings *settings,
 	MullvadLogSink logSink,
 	void *logSinkContext
 )
 {
-	if (nullptr != g_fwContext)
-	{
-		//
-		// This is an error.
-		// The existing instance may have a different timeout etc.
-		//
-		return false;
-	}
-
-	// Convert seconds to milliseconds.
-	uint32_t timeout_ms = timeout * 1000;
-
-	g_logSink = logSink;
-	g_logSinkContext = logSinkContext;
-
 	try
 	{
-		g_fwContext = new FwContext(timeout_ms, settings);
+		if (nullptr != g_fwContext)
+		{
+			//
+			// This is an error.
+			// The existing instance may have a different timeout etc.
+			//
+			THROW_ERROR("Cannot initialize WINFW twice");
+		}
+
+		if (nullptr == settings)
+		{
+			THROW_ERROR("Invalid argument: settings");
+		}
+
+		// Convert seconds to milliseconds.
+		uint32_t timeout_ms = timeout * 1000;
+
+		g_logSink = logSink;
+		g_logSinkContext = logSinkContext;
+
+		g_fwContext = new FwContext(timeout_ms, *settings);
 	}
 	catch (std::exception &err)
 	{
@@ -156,8 +161,8 @@ WINFW_LINKAGE
 bool
 WINFW_API
 WinFw_ApplyPolicyConnecting(
-	const WinFwSettings &settings,
-	const WinFwRelay &relay,
+	const WinFwSettings *settings,
+	const WinFwRelay *relay,
 	const PingableHosts *pingableHosts
 )
 {
@@ -168,7 +173,17 @@ WinFw_ApplyPolicyConnecting(
 
 	try
 	{
-		return g_fwContext->applyPolicyConnecting(settings, relay, ConvertPingableHosts(pingableHosts));
+		if (nullptr == settings)
+		{
+			THROW_ERROR("Invalid argument: settings");
+		}
+
+		if (nullptr == relay)
+		{
+			THROW_ERROR("Invalid argument: relay");
+		}
+
+		return g_fwContext->applyPolicyConnecting(*settings, *relay, ConvertPingableHosts(pingableHosts));
 	}
 	catch (std::exception &err)
 	{
@@ -189,8 +204,8 @@ WINFW_LINKAGE
 bool
 WINFW_API
 WinFw_ApplyPolicyConnected(
-	const WinFwSettings &settings,
-	const WinFwRelay &relay,
+	const WinFwSettings *settings,
+	const WinFwRelay *relay,
 	const wchar_t *tunnelInterfaceAlias,
 	const wchar_t *v4DnsHost,
 	const wchar_t *v6DnsHost
@@ -203,9 +218,29 @@ WinFw_ApplyPolicyConnected(
 
 	try
 	{
+		if (nullptr == settings)
+		{
+			THROW_ERROR("Invalid argument: settings");
+		}
+
+		if (nullptr == relay)
+		{
+			THROW_ERROR("Invalid argument: relay");
+		}
+
+		if (nullptr == tunnelInterfaceAlias)
+		{
+			THROW_ERROR("Invalid argument: tunnelInterfaceAlias");
+		}
+
+		if (nullptr == v4DnsHost)
+		{
+			THROW_ERROR("Invalid argument: v4DnsHost");
+		}
+
 		return g_fwContext->applyPolicyConnected(
-			settings,
-			relay,
+			*settings,
+			*relay,
 			tunnelInterfaceAlias,
 			wfp::IpAddress(v4DnsHost),
 			nullptr != v6DnsHost ? std::make_optional(wfp::IpAddress(v6DnsHost)) : std::nullopt
@@ -230,7 +265,7 @@ WINFW_LINKAGE
 bool
 WINFW_API
 WinFw_ApplyPolicyBlocked(
-	const WinFwSettings &settings
+	const WinFwSettings *settings
 )
 {
 	if (nullptr == g_fwContext)
@@ -240,7 +275,12 @@ WinFw_ApplyPolicyBlocked(
 
 	try
 	{
-		return g_fwContext->applyPolicyBlocked(settings);
+		if (nullptr == settings)
+		{
+			THROW_ERROR("Invalid argument: settings");
+		}
+
+		return g_fwContext->applyPolicyBlocked(*settings);
 	}
 	catch (std::exception &err)
 	{
